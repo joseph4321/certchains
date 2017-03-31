@@ -13,8 +13,8 @@ chain is disneyauth.altaresources.com ---- thawte SSL CA - G2 ---- thawte Primar
 chain is twdc.corp.passwordreset ---- The Walt Disney Company Issuing CA ---- The Walt Disney Company Root CA  
 
 Summary of found CA's:  
-- COMODO RSA Certification Authority
-- thawte Primary Root CA
-- Go Daddy Root Certificate Authority - G2
-- The Walt Disney Company Issuing CA
-- The Walt Disney Company Root CA
+- COMODO RSA Domain Validation Secure Server CA Feb 11 23:59:59 2029 GMT  
+- thawte Primary Root CA Jul 16 23:59:59 2036 GMT  
+- Go Daddy Root Certificate Authority - G2 Dec 31 23:59:59 2037 GMT  
+- The Walt Disney Company Issuing CA Sep 15 19:42:04 2027 GMT  
+- The Walt Disney Company Root CA Sep  5 13:55:06 2030 GMT  
