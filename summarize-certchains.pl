@@ -14,11 +14,12 @@
 # chain is twdc.corp.passwordreset ---- The Walt Disney Company Issuing CA ---- The Walt Disney Company Root CA
 #
 # Summary of found CA's:
-#- COMODO RSA Domain Validation Secure Server CA Feb 11 23:59:59 2029 GMT
-#- thawte Primary Root CA Jul 16 23:59:59 2036 GMT
-#- Go Daddy Root Certificate Authority - G2 Dec 31 23:59:59 2037 GMT
-#- The Walt Disney Company Issuing CA Sep 15 19:42:04 2027 GMT
-#- The Walt Disney Company Root CA Sep  5 13:55:06 2030 GMT
+#- COMODO RSA Certification Authority Jan 18 23:59:59 2038 GMT --- This CA has valid leaf certs
+#- thawte Primary Root CA Jul 16 23:59:59 2036 GMT --- This CA has valid leaf certs
+#- Go Daddy Root Certificate Authority - G2 Dec 31 23:59:59 2037 GMT --- This CA has valid leaf certs
+#- RapidSSL SHA256 CA - G3 May 20 21:39:32 2022 GMT --- This CA does not have valid leaf certs
+#- The Walt Disney Company Issuing CA Sep 15 19:42:04 2027 GMT --- This CA has valid leaf certs
+#- The Walt Disney Company Root CA Sep  5 13:55:06 2030 GMT --- This CA has valid leaf certs
 
 
 
@@ -30,6 +31,7 @@ $env="ext";
 @rootcerts = ();
 %allcerts = {};
 %certexpires = {};
+%cavalidleaf = {};
 
 
 
@@ -64,12 +66,24 @@ foreach $file (@files){
 $cert="";
 $issuer="";
 $chain = "";
+$expire = "";
 @foundca = ();
+$curDate = `date +%s`;chomp($curDate);
 while(($cert,$issuer) = each(%allcerts)){
         $chain = $cert . " ---- ";
 
+	# get the cert expiration date and note if it is expired
+	# if it is not expired, the issuing ca has at least one cert that is not expired
+	$expire = $certexpires{$cert};
+	$epoch = `date --date="$expire" +%s`;chomp($epoch);
+	$diff = $epoch - $curDate;
+	if($diff > 0){$cavalidleaf{$issuer}=1;}
+
         # while the the issuer of the cert exists in the array
         while(exists $allcerts{$issuer}){
+
+		# if client cert valid, note the issuer has a valid leaf cert
+		if($diff > 0){$cavalidleaf{$issuer}=1;}
 
                 # check if a ca is found and save it
 		# if already exists, ignore
@@ -104,7 +118,15 @@ while(($cert,$issuer) = each(%allcerts)){
 # print out the found ca's
 print "\n\n\n";
 print "Summary of found CA's:\n";
-foreach $ca (@foundca){print "- $ca " . $certexpires{$ca} . "\n";}
+foreach $ca (@foundca){
+
+	# note if the CA has valid leaf certs
+	$valid = "";
+	if($cavalidleaf{$ca} == 1){$valid = "This CA has valid leaf certs";}
+	else{$valid = "This CA does not have valid leaf certs";}
+
+	print "- $ca " . $certexpires{$ca} . " --- " . $valid . "\n";
+}
 
 
 
@@ -158,5 +180,8 @@ sub printCertInfo{
 
 	# add the cert expiration date
 	$certexpires{$certName} = $expire;
+
+	# add the cert for valid leaf checks
+	$cavalidleaf{$certName} = 0;
 }
 
