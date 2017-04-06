@@ -10,16 +10,17 @@
 #
 # chain is polaris-pivs.karmalab.net ---- Expedia Internal 1C ---- Expedia MS Root CA (2048)
 # chain is tableiq.com ---- RapidSSL CA ---- GeoTrust Global CA 
+# chain is DLX-Disney OFE TST Sep 16 12:00:00 2018 GMT ---- unable to complete chain (DigiCert SHA2 Assured ID CA was not found in trust store)
 # chain is disneyauth.altaresources.com ---- thawte SSL CA - G2 ---- thawte Primary Root CA
 # chain is twdc.corp.passwordreset ---- The Walt Disney Company Issuing CA ---- The Walt Disney Company Root CA
 #
 # Summary of found CA's:
-#- COMODO RSA Certification Authority Jan 18 23:59:59 2038 GMT --- This CA has valid leaf certs
-#- thawte Primary Root CA Jul 16 23:59:59 2036 GMT --- This CA has valid leaf certs
-#- Go Daddy Root Certificate Authority - G2 Dec 31 23:59:59 2037 GMT --- This CA has valid leaf certs
+#- COMODO RSA Certification Authority Jan 18 23:59:59 2038 GMT
+#- thawte Primary Root CA Jul 16 23:59:59 2036 GMT
+#- Go Daddy Root Certificate Authority - G2 Dec 31 23:59:59 2037 GMT
 #- RapidSSL SHA256 CA - G3 May 20 21:39:32 2022 GMT --- This CA does not have valid leaf certs
-#- The Walt Disney Company Issuing CA Sep 15 19:42:04 2027 GMT --- This CA has valid leaf certs
-#- The Walt Disney Company Root CA Sep  5 13:55:06 2030 GMT --- This CA has valid leaf certs
+#- The Walt Disney Company Issuing CA Sep 15 19:42:04 2027 GMT
+#- The Walt Disney Company Root CA Sep  5 13:55:06 2030 GMT
 
 
 
@@ -29,10 +30,10 @@ $env="ext";
 
 # Cert info
 @rootcerts = ();
+@allca = ();
 %allcerts = {};
 %certexpires = {};
 %cavalidleaf = {};
-
 
 
 # client certs extracted from db
@@ -68,9 +69,19 @@ $issuer="";
 $chain = "";
 $expire = "";
 @foundca = ();
+@formattedcert = ();
 $curDate = `date +%s`;chomp($curDate);
 while(($cert,$issuer) = each(%allcerts)){
-        $chain = $cert . " ---- ";
+
+	# if this is a root ca
+	if($cert eq $issuer){push(@foundca,$issuer);next;}
+
+	# if this is a ca, ignore
+	$cafound=0;
+	foreach $ca (@allca){
+		if($ca eq $cert){$cafound=1;}
+	}
+	if($cafound == 1){next;}
 
 	# get the cert expiration date and note if it is expired
 	# if it is not expired, the issuing ca has at least one cert that is not expired
@@ -79,8 +90,11 @@ while(($cert,$issuer) = each(%allcerts)){
 	$diff = $epoch - $curDate;
 	if($diff > 0){$cavalidleaf{$issuer}=1;}
 
+        $chain = $cert . " " . $certexpires{$cert} . " ---- ";
+
         # while the the issuer of the cert exists in the array
-        while(exists $allcerts{$issuer}){
+	$rootcertfound=0;
+        while(exists $allcerts{"$issuer"}){
 
 		# if client cert valid, note the issuer has a valid leaf cert
 		if($diff > 0){$cavalidleaf{$issuer}=1;}
@@ -99,19 +113,23 @@ while(($cert,$issuer) = each(%allcerts)){
                 $rootcertfound=0;
                 foreach $c (@rootcerts){
                         if($c eq $issuer){
-                                $rootcertfound = 1;
+                        	$rootcertfound = 1;
                         }
                 }
                 if($rootcertfound == 1){
-                        $chain .= $issuer;
+                        $chain .= $issuer . " " . $certexpires{$issuer};
                         last;
                 }
 
                 # still not at a root cert, note the issuer, and continue
-                $chain .= $issuer . " ---- ";
-                $issuer = $allcerts{$issuer};
+                $chain .= $issuer . " " . $certexpires{$issuer} . " ---- ";
+                $issuer = $allcerts{"$issuer"};
 
         }
+	
+	# if unable to get to the root cert, make a note in the output
+	if($rootcertfound == 0){ $chain .= "unable to complete chain ($issuer was not found in trust store)";}
+
         print "chain is $chain\n";
 }
 
@@ -122,10 +140,9 @@ foreach $ca (@foundca){
 
 	# note if the CA has valid leaf certs
 	$valid = "";
-	if($cavalidleaf{$ca} == 1){$valid = "This CA has valid leaf certs";}
-	else{$valid = "This CA does not have valid leaf certs";}
+	if($cavalidleaf{$ca} == 0){$valid = " --- This CA does not have valid leaf certs";}
 
-	print "- $ca " . $certexpires{$ca} . " --- " . $valid . "\n";
+	print "- $ca " . $certexpires{$ca} . $valid . "\n";
 }
 
 
@@ -147,12 +164,14 @@ sub printCertInfo{
 	# look for needed information in the formatted output
         $certName="";
         $issuer="";
+	$issuerbuf="";
         $certbuf="";
         $subjectbuf="";
 	$exipire="";
         foreach $line (@r){
                 $certbuf.=$line;
                 if($line =~ /Issuer\: .*CN\=(.*)\n/){$issuer=$1;chomp($issuer);}
+                if($line =~ /Issuer\: (.*)/){$issuerbuf=$1;chomp($issuerbuf);}
                 if($line =~ /Subject\: .*CN\=(.*)/){$certName = $1;chomp($certName);}
                 if($line =~ /Subject\: (.*)/){$subjectbuf = $1;chomp($subjectbuf);}
 		if($line =~ /Not After : (.*)/){$expire = $1;chomp($expire);}
@@ -161,27 +180,36 @@ sub printCertInfo{
 	# use the full subject if the nicer cn is not available
         if ($certName eq ""){$certName=$subjectbuf;}
 
+	# use the full issuer if the nicer cn is not available
+	if ($issuer eq ""){$issuer=$issuerbuf;}
+
 	# if the certname equals the issuer, this is a root cert
         if($certName eq $issuer){push(@rootcerts,$certName);}
 
+	# record all of the ca's, not just root
+	$foundca=0;
+	foreach $ca (@allca){
+		if($issuer eq $ca){$foundca=1;}
+	}
+	if($foundca == 0){push(@allca,$issuer);}
 
 	# check for duplicate entries in allcerts.  If duplicate found, add "-$i",
 	# where $i increases everytime a collision occurs;  Needed if a customer
 	# moves/renews their cert to another CA, but both certs still exist in the policy
         $i=1;
-        while(exists $allcerts{$certName}){
+        while(exists $allcerts{"$certName"}){
                 if($i > 1){chop($certName);chop($certName);}
                 $certName .= "-$i";
                 $i++;
         }
 
 	# add the cert to the found certs
-        $allcerts{$certName} = $issuer;
+        $allcerts{"$certName"} = $issuer;
 
 	# add the cert expiration date
-	$certexpires{$certName} = $expire;
+	$certexpires{"$certName"} = $expire;
 
 	# add the cert for valid leaf checks
-	$cavalidleaf{$certName} = 0;
+	$cavalidleaf{"$certName"} = 0;
 }
 
