@@ -73,9 +73,6 @@ $expire = "";
 $curDate = `date +%s`;chomp($curDate);
 while(($cert,$issuer) = each(%allcerts)){
 
-	# if this is a root ca
-	if($cert eq $issuer){push(@foundca,$issuer);next;}
-
 	# if this is a ca, ignore
 	$cafound=0;
 	foreach $ca (@allca){
