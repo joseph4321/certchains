@@ -5,14 +5,13 @@
 # Data extracted fromt he db using:
 # select cert from client_cert into outfile '/tmp/client_cert.csv' fields terminated by '||||' lines terminated by '[][][]';
 # select cert_base64 from trusted_cert into outfile '/tmp/trusted_cert.csv' fields terminated by '||||' lines terminated by '[][][]';
-# Will also extract certs from missingcerts.csv that can be manually added to the trust store 
-#
+# 
 # Example Output:
 #
 # chain is polaris-pivs.karmalab.net ---- Expedia Internal 1C ---- Expedia MS Root CA (2048)
 # chain is tableiq.com ---- RapidSSL CA ---- GeoTrust Global CA 
 # chain is DLX-Disney OFE TST Sep 16 12:00:00 2018 GMT ---- unable to complete chain (DigiCert SHA2 Assured ID CA was not found in trust store)
-# chain is disneyauth.altaresources.com ---- (Missing from trust store) thawte SSL CA - G2 ---- thawte Primary Root CA
+# chain is disneyauth.altaresources.com ---- thawte SSL CA - G2 ---- thawte Primary Root CA
 # chain is twdc.corp.passwordreset ---- The Walt Disney Company Issuing CA ---- The Walt Disney Company Root CA
 #
 # Summary of found CA's:
@@ -23,6 +22,21 @@
 #- The Walt Disney Company Issuing CA Sep 15 19:42:04 2027 GMT
 #- The Walt Disney Company Root CA Sep  5 13:55:06 2030 GMT
 
+
+print "-" x 80;
+print "\n";
+print "This script will extract cert chain and CA information from the API Gateway\n";
+print "Note that:\n";
+print "- objects that have \"unable to complete chain (<issuer> was not found in trust store)\" means that the issuer of the cert was not found in the group of available certs\n";
+print "- objects that have \"Missing from trust store\" means that the issuer was not found in the gateway trust store, but was manually added to missingcerts.csv.  It is unclear if these certs will work in production\n";
+print "- objects that have \"This CA does not have valid leaf certs\" means that the CA does not have a valid leaf cert that references it, which could mean no certs reference it, or only expired leaf certs are using it\n";
+print "- objects that end in \"-1\", \"-2\", \"-3\", etc. means that the name of the object was previously found.  Both instances will need to be kept in case the cert was renewed and both are being kept in the policy, and/or the cert switched CA's.\n\n";
+print "This script will output information in the following format:\n";
+print "chain is <client cert> ---- <intermediate cert> ---- <root cert>\n";
+print "Summary of found CA's:\n";
+print "- <Certificate Authority>\n";
+print "-" x 80;
+print "\n\n";
 
 
 
