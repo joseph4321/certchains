@@ -12,7 +12,7 @@
 # chain is polaris-pivs.karmalab.net ---- Expedia Internal 1C ---- Expedia MS Root CA (2048)
 # chain is tableiq.com ---- RapidSSL CA ---- GeoTrust Global CA 
 # chain is DLX-Disney OFE TST Sep 16 12:00:00 2018 GMT ---- unable to complete chain (DigiCert SHA2 Assured ID CA was not found in trust store)
-# chain is disneyauth.altaresources.com ---- thawte SSL CA - G2 ---- thawte Primary Root CA
+# chain is disneyauth.altaresources.com ---- (Missing from trust store) thawte SSL CA - G2 ---- thawte Primary Root CA
 # chain is twdc.corp.passwordreset ---- The Walt Disney Company Issuing CA ---- The Walt Disney Company Root CA
 #
 # Summary of found CA's:

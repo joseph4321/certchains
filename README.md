@@ -5,14 +5,13 @@ Expects client_cert.csv and trusted_cert.csv to exist in the same directory.
 Data extracted from the db using:  
 select cert from client_cert into outfile '/tmp/client_cert.csv' fields terminated by '||||' lines terminated by '[][][]';  
 select cert_base64 from trusted_cert into outfile '/tmp/trusted_cert.csv' fields terminated by '||||' lines terminated by '[][][]';  
-Will also extract certs from missingcerts.csv that can be manually added to th
-e trust store  
+Will also extract certs from missingcerts.csv that can be manually added to the trust store  
 
 Example Output:  
 chain is polaris-pivs.karmalab.net ---- Expedia Internal 1C ---- Expedia MS Root CA (2048)  
 chain is tableiq.com ---- RapidSSL CA ---- GeoTrust Global CA  
 chain is DLX-Disney OFE TST Sep 16 12:00:00 2018 GMT ---- unable to complete chain (DigiCert SHA2 Assured ID CA was not found in trust store)  
-chain is disneyauth.altaresources.com ---- thawte SSL CA - G2 ---- thawte Primary Root CA  
+chain is disneyauth.altaresources.com ---- (Missing from trust store) thawte SSL CA - G2 ---- thawte Primary Root CA  
 chain is twdc.corp.passwordreset ---- The Walt Disney Company Issuing CA ---- The Walt Disney Company Root CA  
 
 Summary of found CA's:  
