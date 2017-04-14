@@ -5,7 +5,8 @@
 # Data extracted fromt he db using:
 # select cert from client_cert into outfile '/tmp/client_cert.csv' fields terminated by '||||' lines terminated by '[][][]';
 # select cert_base64 from trusted_cert into outfile '/tmp/trusted_cert.csv' fields terminated by '||||' lines terminated by '[][][]';
-# 
+# Will also extract certs from missingcerts.csv that can be manually added to the trust store 
+#
 # Example Output:
 #
 # chain is polaris-pivs.karmalab.net ---- Expedia Internal 1C ---- Expedia MS Root CA (2048)
@@ -31,16 +32,31 @@ $env="ext";
 # Cert info
 @rootcerts = ();
 @allca = ();
+@missingcerts = ();
 %allcerts = {};
 %certexpires = {};
 %cavalidleaf = {};
+$fromtruststore = 0;
 
+# grab the missing intermediate certs
+# these intermediate certs were not found in the trust store, but were
+# verified to have client certs attached to them that work
+# they were manually added to the missingcerts.csv file as base64 pem encoded
+$missing_ca_raw = `cat missingcerts.csv`;
+@missing_ca_split = split(',',$missing_ca_raw);
+foreach $cert (@missing_ca_split){
+	$fromtruststore = 0;
+	chomp($cert);
+	if($cert !~ /BEGIN CERTIFICATE/){next;}
+	printCertInfo($cert);
+}
 
 # client certs extracted from db
 $client_certs_raw = `cat client_cert.csv`;
 @client_certs_split = split('\[\]\[\]\[\]',$client_certs_raw);
 
 foreach $cert (@client_certs_split){
+	$fromtruststore = 1;
         $cert = "-----BEGIN CERTIFICATE-----\n$cert\n-----END CERTIFICATE-----";
         printCertInfo($cert);
 }
@@ -50,6 +66,7 @@ $trusted_certs_raw = `cat trusted_cert.csv`;
 @trusted_certs_split = split('\[\]\[\]\[\]',$trusted_certs_raw);
 
 foreach $cert (@trusted_certs_split){
+	$fromtruststore = 1;
         $cert = "-----BEGIN CERTIFICATE-----\n$cert\n-----END CERTIFICATE-----";
         printCertInfo($cert);
 }
@@ -58,6 +75,7 @@ foreach $cert (@trusted_certs_split){
 @files=`ls /var/www/html/data/certs/*-ext.cer`;
 
 foreach $file (@files){
+	$fromtruststore = 1;
         $buf = `cat $file`;
         printCertInfo($buf);
 }
@@ -68,6 +86,7 @@ $cert="";
 $issuer="";
 $chain = "";
 $expire = "";
+$fromtruststore = 0;
 @foundca = ();
 @formattedcert = ();
 $curDate = `date +%s`;chomp($curDate);
@@ -80,6 +99,7 @@ while(($cert,$issuer) = each(%allcerts)){
 	}
 	if($cafound == 1){next;}
 
+
 	# get the cert expiration date and note if it is expired
 	# if it is not expired, the issuing ca has at least one cert that is not expired
 	$expire = $certexpires{$cert};
@@ -89,12 +109,15 @@ while(($cert,$issuer) = each(%allcerts)){
 
         $chain = $cert . " " . $certexpires{$cert} . " ---- ";
 
+
         # while the the issuer of the cert exists in the array
 	$rootcertfound=0;
+	$usesmissingca=0;
         while(exists $allcerts{"$issuer"}){
 
 		# if client cert valid, note the issuer has a valid leaf cert
 		if($diff > 0){$cavalidleaf{$issuer}=1;}
+
 
                 # check if a ca is found and save it
 		# if already exists, ignore
@@ -103,6 +126,14 @@ while(($cert,$issuer) = each(%allcerts)){
                         if($foundca[$i] eq $issuer){$found=1;}
                 }
                 if($found == 0){push(@foundca,$issuer);}
+
+
+		# check if this is a missing cert that was manually added
+		$found=0;
+		for($i=0;$i<@missingcerts;$i++){
+			if($issuer eq $missingcerts[$i]){$found=1;}
+		}
+		if($found == 1){ $chain .= "(Missing from trust store) ";}
 
 
                 # check if the issuer is a root cert
@@ -117,6 +148,7 @@ while(($cert,$issuer) = each(%allcerts)){
                         $chain .= $issuer . " " . $certexpires{$issuer};
                         last;
                 }
+
 
                 # still not at a root cert, note the issuer, and continue
                 $chain .= $issuer . " " . $certexpires{$issuer} . " ---- ";
@@ -208,5 +240,8 @@ sub printCertInfo{
 
 	# add the cert for valid leaf checks
 	$cavalidleaf{"$certName"} = 0;
+
+	# note if this cert is not from the trust store
+	if($fromtruststore == 0){push(@missingcerts,$certName);}
 }
 

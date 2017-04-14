@@ -5,6 +5,8 @@ Expects client_cert.csv and trusted_cert.csv to exist in the same directory.
 Data extracted from the db using:  
 select cert from client_cert into outfile '/tmp/client_cert.csv' fields terminated by '||||' lines terminated by '[][][]';  
 select cert_base64 from trusted_cert into outfile '/tmp/trusted_cert.csv' fields terminated by '||||' lines terminated by '[][][]';  
+Will also extract certs from missingcerts.csv that can be manually added to th
+e trust store  
 
 Example Output:  
 chain is polaris-pivs.karmalab.net ---- Expedia Internal 1C ---- Expedia MS Root CA (2048)  
